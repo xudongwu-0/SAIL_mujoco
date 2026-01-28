@@ -83,3 +83,6 @@ outputs/
 .mujoco/
 mjkey.txt
 
+
+# Large binaries
+bazel-6.3.2-linux-x86_64
