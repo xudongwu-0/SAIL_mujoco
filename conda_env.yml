@@ -1,0 +1,10 @@
+name: mrn
+channels:
+  - defaults
+dependencies:
+  - python=3.6
+  - pytorch=1.4.0
+  - cudatoolkit=10.1
+  - absl-py
+  - pyparsing
+  - pip

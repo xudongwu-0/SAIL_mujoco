@@ -1,0 +1,129 @@
+# config/train_V_npg.yaml
+defaults: []
+
+# Make runs identifiable and avoid overwriting old SAC runs
+experiment: NPG_RevKL_Experiment
+
+# --- AGENT CONFIGURATION ---
+agent:
+  # IMPORTANT: keep this name to satisfy logger.py's whitelist
+  name: sac_revkl
+
+  # IMPORTANT: this should point to your NPG/TRPO-style agent implementation
+  class: agent.sac_revkl_npg.SACRevKL_NPG_Agent
+
+  params:
+    obs_dim: null
+    action_dim: null
+    action_range: null
+    device: ${device}
+
+    actor_cfg:
+      class: agent.actor.DiagGaussianActor
+      params:
+        obs_dim: null
+        action_dim: null
+        hidden_dim: 1024
+        hidden_depth: 2
+        log_std_bounds: [-5, 2]
+
+    critic_cfg:
+      class: agent.critic.DoubleQCritic
+      params:
+        obs_dim: null
+        action_dim: null
+        hidden_dim: 1024
+        hidden_depth: 2
+
+    # --- Common params (keep for compatibility; NPG agent can ignore unused ones) ---
+    discount: 0.99
+    init_temperature: 0.1
+    alpha_lr: 1.0e-4
+    alpha_betas: [0.9, 0.999]
+    actor_lr: 1.0e-4        # may be unused by NPG agent
+    actor_betas: [0.9, 0.999]
+    actor_update_frequency: 1
+    critic_lr: 1.0e-4
+    critic_betas: [0.9, 0.999]
+    critic_tau: 0.005
+    critic_target_update_frequency: 2
+    batch_size: 1024
+    learnable_temperature: true
+    normalize_state_entropy: true
+
+    # RevKL term (keep exactly as before for fair comparison)
+    revkl_gamma: 0.0
+
+    # --- NPG/TRPO-style params (NEW) ---
+    # Your requested trust-region constraint
+    max_kl: 0.01
+
+    # Typical NPG/TRPO internals (safe defaults; adjust later)
+    cg_iters: 10
+    damping: 0.1
+
+    # Optional: limit update magnitude further
+    # step_scale: 1.0
+# --- END AGENT CONFIGURATION ---
+
+
+# ----------------------------
+# reward learning (KEEP to avoid None issues)
+# ----------------------------
+segment: 50
+activation: tanh
+num_seed_steps: 1000
+num_unsup_steps: 9000
+num_interact: 5000
+reward_lr: 0.0003
+reward_batch: 128
+reward_update: 200
+feed_type: 1
+reset_update: 100
+topK: 5
+ensemble_size: 3
+max_feedback: 1400
+large_batch: 10
+label_margin: 0.0
+teacher_beta: -1
+teacher_gamma: 1
+teacher_eps_mistake: 0
+teacher_eps_skip: 0
+teacher_eps_equal: 0
+
+# scheduling
+reward_schedule: 0
+reference_update_frequency: 20000
+num_improving_steps: 10000
+
+num_train_steps: 1e6
+replay_buffer_capacity: ${num_train_steps}
+
+# evaluation config
+eval_frequency: 10000
+num_eval_episodes: 10
+device: cuda
+
+# logger
+log_frequency: 10000
+log_save_tb: true
+
+# video recorder
+save_video: false
+
+# setups
+seed: 1
+
+# Environment
+env: dog_stand
+gradient_update: 1
+
+
+# ----------------------------
+# hydra configuration
+# Use a distinct folder to avoid mixing with SAC runs
+# ----------------------------
+hydra:
+  name: ${env}
+  run:
+    dir: ./exp_npg/${env}/H${agent.params.actor_cfg.params.hidden_dim}_L${agent.params.actor_cfg.params.hidden_depth}_K${agent.params.max_kl}_clr${agent.params.critic_lr}/teacher_b${teacher_beta}_g${teacher_gamma}_m${teacher_eps_mistake}_s${teacher_eps_skip}_e${teacher_eps_equal}/init${num_seed_steps}_unsup${num_unsup_steps}_inter${num_interact}_seg${segment}_act${activation}_Rlr${reward_lr}_Rupdate${reward_update}_en${ensemble_size}_sample${feed_type}_large_batch${large_batch}_schedule_${reward_schedule}_label_smooth_${label_margin}/${experiment}_maxfeed${max_feedback}_Rbatch${reward_batch}_seed${seed}

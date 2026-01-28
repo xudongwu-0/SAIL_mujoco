@@ -1,0 +1,93 @@
+# Inherits defaults from the base configuration, e.g., agent: sac
+defaults:
+  - agent: sac
+
+# ==> MODIFICATION: Renamed experiment for clarity and to track SAIL-specific runs.
+experiment: SAIL_run_gamma_0.01 # Example: change gamma value for different experiments
+
+# --- NEW & MODIFIED Parameters for SAIL-RevKL ---
+# These parameters are based on your paper's theoretical contributions.
+
+# Path to your supervised fine-tuned (SFT) model, which acts as the reference policy.
+# This is a CRUCIAL new parameter. You must provide a valid path to a saved model.
+sft_model_path: "path/to/your/sft_model.pt"
+
+# Renamed `reward_update` to be more descriptive for SAIL.
+# This now controls how many gradient steps are taken on the SAIL objective per learning phase.
+agent_update_epochs: 200
+
+# Renamed `reward_batch` to be more descriptive.
+# This is the batch size for sampling preferences from the buffer to compute the SAIL loss.
+sail_batch_size: 128
+
+# NEW: Temperature parameter `beta` for the DPO/SAIL loss function.
+beta: 0.1
+
+# NEW: Weight `gamma` for the Reverse KL regularization term (the core of SAIL-RevKL).
+gamma: 0.01
+
+# NEW: Radius `B_θ` for the L2 projection of the policy network's parameters, as required by your theory.
+param_bound: 10.0
+
+
+# --- Parameters for Data Collection and Interaction (largely unchanged) ---
+
+# Initial random steps to fill the buffer before training starts.
+num_seed_steps: 1000
+# Number of environment steps between each policy learning phase.
+num_interact: 5000
+# Maximum number of preference labels to collect in total.
+max_feedback: 1400
+
+
+# --- REMOVED/DEPRECATED Parameters ---
+# The following parameters were for the explicit bilevel reward model learning,
+# which SAIL's direct policy optimization method bypasses. They are no longer needed.
+#
+# num_unsup_steps: 9000
+# reward_lr: 0.0003
+# feed_type: 1
+# reset_update: 100
+# topK: 5
+# ensemble_size: 3
+# large_batch: 10
+# label_margin: 0.0
+# teacher_beta: -1
+# teacher_gamma: 1
+# teacher_eps_mistake: 0
+# teacher_eps_skip: 0
+# teacher_eps_equal: 0
+# reward_schedule: 0
+
+
+# --- General Training & Evaluation Parameters (unchanged) ---
+
+num_train_steps: 1e6
+replay_buffer_capacity: ${num_train_steps}
+
+# Evaluation config
+eval_frequency: 10000
+num_eval_episodes: 10
+device: cuda
+
+# Logger
+log_frequency: 10000
+log_save_tb: true
+
+# Video recorder
+save_video: false
+
+# Setups
+seed: 1
+
+# Environment
+env: dog_stand
+
+
+# --- Hydra Configuration (Output Path) ---
+hydra:
+  name: ${env}
+  run:
+    # ==> MODIFICATION: Simplified the output path to reflect new SAIL hyperparameters.
+    # This makes it much easier to organize and compare your experiment results.
+    dir: ./exp_sail/${env}/beta${beta}_gamma${gamma}_bound${param_bound}/inter${num_interact}_batch${sail_batch_size}_epochs${agent_update_epochs}/${experiment}_seed${seed}

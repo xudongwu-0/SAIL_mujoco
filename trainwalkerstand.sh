@@ -1,0 +1,117 @@
+cd "$ROOT"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate mrn
+
+
+# ==========================================
+
+export MUJOCO_ROOT="${MUJOCO_ROOT:-$HOME/.mujoco}"
+export MUJOCO_PY_MUJOCO_PATH=${MUJOCO_ROOT}/mujoco200
+
+export CONDA_HOME=$CONDA_PREFIX
+export CFLAGS="-I$CONDA_HOME/include -I$CONDA_HOME/include/GL $CFLAGS"
+export LDFLAGS="-L$CONDA_HOME/lib -Wl,-rpath,$CONDA_HOME/lib $LDFLAGS"
+export CPATH=$CONDA_HOME/include
+export LIBRARY_PATH=$CONDA_HOME/lib
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MUJOCO_ROOT/mujoco200/bin:/usr/lib/nvidia:$CONDA_HOME/lib
+
+
+rm -rf ~/.mujoco/mujoco-py/build
+
+echo " Starting Training..."
+
+
+for SEED in 7 8 9
+do
+  echo "--------------------------------------------------"
+  echo ">>> [PEBBLE] walker_stand | Seed: $SEED"
+  echo "--------------------------------------------------"
+
+  CUDA_VISIBLE_DEVICES=3 python train_PEBBLE.py \
+    env=walker_stand \
+    seed=$SEED \
+    experiment=PEBBLE_walker_stand_400k_seed${SEED} \
+    num_train_steps=400000 \
+    num_unsup_steps=900 \
+    num_interact=2000 \
+    max_feedback=250 \
+    reward_batch=10 \
+    reward_update=50 \
+    feed_type=1 \
+    agent.params.batch_size=512 \
+    agent.params.actor_lr=0.0005 \
+    agent.params.critic_lr=0.0005
+
+  
+
+  echo "=================================================="
+  echo ">>> [TRPO ablation] walker_stand | Seed: $SEED"
+  echo "=================================================="
+  CUDA_VISIBLE_DEVICES=3 python train_V_npg.py \
+    env=walker_stand \
+    seed=$SEED \
+    experiment=TRPO_abl_walker_stand_400k_seed${SEED} \
+    agent.params.actor_lr=0.0005 \
+    agent.params.critic_lr=0.0005 \
+    agent.params.batch_size=512 \
+    num_unsup_steps=900 \
+    num_train_steps=400000 \
+    num_interact=2000 \
+    max_feedback=250 \
+    reward_batch=10 \
+    reward_update=50 \
+    feed_type=1 \
+    reference_update_frequency=50000 \
+    num_improving_steps=5000
+
+
+  echo "=================================================="
+  echo ">>> [TRPO] walker_stand | Seed: $SEED"
+  echo "=================================================="
+  CUDA_VISIBLE_DEVICES=3 python train_V_npg.py \
+    env=walker_stand \
+    seed=$SEED \
+    experiment=TRPO_walker_stand_400k_seed${SEED} \
+    agent.params.actor_lr=0.0005 \
+    agent.params.critic_lr=0.0005 \
+    agent.params.batch_size=512 \
+    num_unsup_steps=900 \
+    num_train_steps=400000 \
+    num_interact=2000 \
+    max_feedback=250 \
+    reward_batch=10 \
+    reward_update=50 \
+    feed_type=1 \
+    max_kl=0.1 \
+    reference_update_frequency=50000 \
+    num_improving_steps=5000
+
+  echo "=================================================="
+  echo ">>> [SGD] walker_stand | Seed: $SEED"
+  echo "=================================================="
+  CUDA_VISIBLE_DEVICES=3 python train_V.py \
+    env=walker_stand \
+    seed=$SEED \
+    experiment=SGD_baseline_walker_stand_400k_seed${SEED} \
+    agent.params.actor_lr=0.0005 \
+    agent.params.critic_lr=0.0005 \
+    agent.params.batch_size=512 \
+    num_unsup_steps=900 \
+    num_train_steps=400000 \
+    num_interact=2000 \
+    max_feedback=250 \
+    reward_batch=10 \
+    reward_update=50 \
+    feed_type=1 \
+    reference_update_frequency=50000 \
+    num_improving_steps=5000
+done
+
+
+
+echo "=================================================="
+echo ">>> ALL EXPERIMENTS COMPLETED!"
+echo "=================================================="
